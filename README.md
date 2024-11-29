@@ -1,4 +1,4 @@
-# CryptoApp
+# CryptoAppRank
 
 A mobile app built with Ionic Vue to fetch and display cryptocurrency data from Coinlore API. This app features data pagination and user profile management.
 
