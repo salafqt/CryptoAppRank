@@ -11,22 +11,15 @@
           <ion-title size="large">Crypto Prices</ion-title>
         </ion-toolbar>
       </ion-header>
-      <div
-        style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          margin-top: 20px;
-        "
-      >
+      <div class="controls">
         <ion-button @click="fetchData">Refresh Data</ion-button>
         <ion-input
           v-model="searchQuery"
-          placeholder="Search by name"
+          placeholder="   Search by name"
           class="search-input"
         ></ion-input>
       </div>
-      <ion-grid>
+      <ion-grid class="crypto-table">
         <ion-row>
           <ion-col>Rank</ion-col>
           <ion-col>Symbol & Name</ion-col>
@@ -44,7 +37,7 @@
           </ion-col>
         </ion-row>
       </ion-grid>
-      <div style="display: flex; justify-content: center; margin-top: 20px">
+      <div class="pagination-controls">
         <ion-button @click="prevPage" :disabled="currentPage === 1"
           >Previous</ion-button
         >
@@ -149,20 +142,41 @@ const prevPage = () => {
 </script>
 
 <style scoped>
-ion-grid {
+.crypto-table {
+  background-color: #ffe4b5;
+  color: black;
   margin-top: 20px;
 }
+
 ion-row {
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #9c7530;
+  font-weight: 500;
   padding: 10px 0;
 }
+
 ion-col {
   text-align: center;
 }
+
 .search-input {
   margin-top: 10px;
-  border: 1px solid #ccc;
+  border: 2px solid #ccc;
   padding: 10px;
+  border-radius: 14px;
   width: 80%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 </style>
