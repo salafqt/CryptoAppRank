@@ -11,37 +11,74 @@
           <ion-title size="large">Crypto Prices</ion-title>
         </ion-toolbar>
       </ion-header>
+
       <div class="controls">
-        <ion-button @click="fetchData">Refresh Data</ion-button>
-        <ion-input
-          v-model="searchQuery"
-          placeholder="   Search by name"
-          class="search-input"
-        ></ion-input>
+        <div class="top-row">
+          <ion-button size="small" color="primary" @click="fetchData"
+            >Refresh</ion-button
+          >
+          <ion-input
+            v-model="searchQuery"
+            placeholder="Search by name or symbol"
+            class="search-input"
+            clear-input
+          ></ion-input>
+        </div>
       </div>
+
       <ion-grid class="crypto-table">
-        <ion-row>
+        <ion-row class="table-head">
           <ion-col>Rank</ion-col>
           <ion-col>Symbol & Name</ion-col>
           <ion-col>USD & Price</ion-col>
         </ion-row>
-        <ion-row v-for="coin in paginatedFilteredCoins" :key="coin.id">
-          <ion-col>{{ coin.rank }}</ion-col>
-          <ion-col>
-            <div>{{ coin.symbol }}</div>
-            <div>{{ coin.name }}</div>
+
+        <ion-row
+          v-for="coin in paginatedFilteredCoins"
+          :key="coin.id"
+          class="table-row"
+        >
+          <ion-col class="rank-col">{{ coin.rank }}</ion-col>
+          <ion-col class="name-col">
+            <div class="symbol">{{ coin.symbol }}</div>
+            <div class="fullname">{{ coin.name }}</div>
           </ion-col>
-          <ion-col>
-            <div>USD</div>
-            <div>{{ coin.price_usd }}</div>
+          <ion-col class="price-col">
+            <div class="currency">USD</div>
+            <div class="amount">{{ formatPrice(coin.price_usd) }}</div>
           </ion-col>
         </ion-row>
+
+        <ion-row v-if="filteredCoins.length === 0">
+          <ion-col class="no-results">No coins found.</ion-col>
+        </ion-row>
       </ion-grid>
+
       <div class="pagination-controls">
-        <ion-button @click="prevPage" :disabled="currentPage === 1"
-          >Previous</ion-button
+        <ion-button
+          size="small"
+          fill="outline"
+          @click="prevPage"
+          :disabled="currentPage === 1"
+          >Prev</ion-button
         >
-        <ion-button @click="nextPage" :disabled="currentPage === totalPages"
+
+        <ion-button
+          v-for="p in visiblePages"
+          :key="String(p) + '-pg'"
+          size="small"
+          :fill="currentPage === p ? 'solid' : 'outline'"
+          :disabled="p === '...'"
+          @click="typeof p === 'number' && goToPage(p as number)"
+        >
+          {{ p }}
+        </ion-button>
+
+        <ion-button
+          size="small"
+          fill="outline"
+          @click="nextPage"
+          :disabled="currentPage === totalPages"
           >Next</ion-button
         >
       </div>
@@ -71,12 +108,11 @@ import {
   IonAlert,
   IonInput,
 } from "@ionic/vue";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import axios from "axios";
 
-// Define an interface for the coin objects
 interface Coin {
-  id: number;
+  id: string;
   rank: number;
   name: string;
   symbol: string;
@@ -96,8 +132,7 @@ const fetchData = async () => {
     const response = await axios.get("https://api.coinlore.net/api/tickers/");
     coins.value = response.data.data;
     alertHeader.value = "Success";
-    alertMessage.value =
-      "The cryptocurrency data has been refreshed successfully.";
+    alertMessage.value = "Cryptocurrency data refreshed.";
   } catch (error) {
     console.error("Error fetching data:", error);
     alertHeader.value = "Error";
@@ -107,14 +142,21 @@ const fetchData = async () => {
   }
 };
 
-// Fetch data when the component is mounted
 onMounted(() => {
   fetchData();
 });
 
+watch(searchQuery, () => {
+  currentPage.value = 1;
+});
+
 const filteredCoins = computed(() => {
-  return coins.value.filter((coin) =>
-    coin.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return coins.value;
+  return coins.value.filter(
+    (coin) =>
+      coin.name.toLowerCase().includes(q) ||
+      coin.symbol.toLowerCase().includes(q)
   );
 });
 
@@ -125,7 +167,7 @@ const paginatedFilteredCoins = computed(() => {
 });
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredCoins.value.length / itemsPerPage);
+  return Math.max(1, Math.ceil(filteredCoins.value.length / itemsPerPage));
 });
 
 const nextPage = () => {
@@ -139,44 +181,141 @@ const prevPage = () => {
     currentPage.value--;
   }
 };
+
+const goToPage = (page: number) => {
+  currentPage.value = page;
+};
+
+const visiblePages = computed<(number | string)[]>(() => {
+  const total = totalPages.value;
+  const current = currentPage.value;
+  const pages: (number | string)[] = [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+
+  if (current <= 4) {
+    for (let i = 2; i <= 5; i++) pages.push(i);
+    pages.push("...");
+  } else if (current >= total - 3) {
+    pages.push("...");
+    for (let i = total - 4; i <= total - 1; i++) pages.push(i);
+  } else {
+    pages.push("...");
+    pages.push(current - 1);
+    pages.push(current);
+    pages.push(current + 1);
+    pages.push("...");
+  }
+
+  pages.push(total);
+  return pages;
+});
+
+const formatPrice = (p: string) => {
+  const n = Number(p);
+  if (!isFinite(n)) return p;
+  if (n >= 1)
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 8,
+  });
+};
 </script>
 
 <style scoped>
 .crypto-table {
-  background-color: #ffe4b5;
-  color: black;
-  margin-top: 20px;
+  background: linear-gradient(180deg, #fffaf0 0%, #fff1d6 100%);
+  color: #1a1a1a;
+  margin: 20px;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-ion-row {
-  border-bottom: 1px solid #9c7530;
-  font-weight: 500;
-  padding: 10px 0;
+.table-head {
+  font-weight: 700;
+  border-bottom: 2px solid rgba(156, 117, 48, 0.25);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.table-row {
+  border-bottom: 1px solid rgba(156, 117, 48, 0.08);
+  padding: 12px 0;
 }
 
 ion-col {
   text-align: center;
 }
 
-.search-input {
-  margin-top: 10px;
-  border: 2px solid #ccc;
-  padding: 10px;
-  border-radius: 14px;
-  width: 80%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.rank-col {
+  font-weight: 700;
+  color: #7a4b00;
+}
+
+.name-col .symbol {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.name-col .fullname {
+  font-size: 0.9rem;
+  color: #5a5a5a;
+}
+
+.price-col .amount {
+  font-weight: 700;
+  color: #006d77;
 }
 
 .controls {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.top-row {
+  display: flex;
+  gap: 12px;
   align-items: center;
-  margin-top: 20px;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+
+.search-input {
+  border-radius: 12px;
+  --padding-start: 12px;
+  width: 70%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .pagination-controls {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 12px;
+  flex-wrap: wrap;
+}
+
+ion-button[disabled] {
+  opacity: 0.6;
+}
+
+.no-results {
+  text-align: center;
+  padding: 16px;
+  color: #666;
 }
 </style>
